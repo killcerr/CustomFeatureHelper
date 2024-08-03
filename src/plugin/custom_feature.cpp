@@ -58,7 +58,7 @@ LL_AUTO_STATIC_HOOK(
     class Experiments const&     experiments
 ) {
     for (auto& wapper : wappers) {
-        registry.registerFeature<CustomFeatureBase>(wapper.name, CustomFeatureBase{&wapper});
+        registry.registerFeature<CustomFeatureBase>(wapper.name, &wapper);
     }
     origin(registry, baseGameVersion, experiments);
 }
