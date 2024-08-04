@@ -32,7 +32,7 @@ concept CustomFeature = requires(
     { f.place(source, pos, random, renderParams) } -> std::same_as<std::optional<BlockPos>>;
 };
 template <CustomFeature T>
-void register_feature(std::string name, auto&&... args) {
+inline void register_feature(std::string name, auto&&... args) {
     details::register_feature(
         {name,
          new T(std::forward(args)...),
