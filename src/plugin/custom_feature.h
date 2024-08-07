@@ -34,18 +34,32 @@ concept CustomFeature = requires(
 };
 template <CustomFeature T>
 inline void register_feature(const std::string& name, const std::vector<std::string>& rules, auto&&... args) {
-    details::register_feature(
-        {name,
-         rules,
-         new T(args...),
-         [](void*                 self,
-            class BlockSource&    source,
-            class BlockPos const& pos,
-            class Random&         random,
-            class RenderParams&   renderParams) -> std::optional<BlockPos> {
-             return reinterpret_cast<T*>(self)->place(source, pos, random, renderParams);
-         }}
-    );
+    if constexpr (sizeof...(args) > 0)
+        details::register_feature(
+            {name,
+             rules,
+             new T(args...),
+             [](void*                 self,
+                class BlockSource&    source,
+                class BlockPos const& pos,
+                class Random&         random,
+                class RenderParams&   renderParams) -> std::optional<BlockPos> {
+                 return reinterpret_cast<T*>(self)->place(source, pos, random, renderParams);
+             }}
+        );
+    else
+        details::register_feature(
+            {name,
+             rules,
+             new T(),
+             [](void*                 self,
+                class BlockSource&    source,
+                class BlockPos const& pos,
+                class Random&         random,
+                class RenderParams&   renderParams) -> std::optional<BlockPos> {
+                 return reinterpret_cast<T*>(self)->place(source, pos, random, renderParams);
+             }}
+        );
 }
 template <typename T>
 concept FeaturePlaceCallBack = requires(
