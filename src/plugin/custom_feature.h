@@ -47,4 +47,29 @@ inline void register_feature(const std::string& name, const std::vector<std::str
          }}
     );
 }
+template <typename T>
+concept FeaturePlaceCallBack = requires(
+    T                     f,
+    class BlockSource&    source,
+    class BlockPos const& pos,
+    class Random&         random,
+    class RenderParams&   renderParams
+) {
+    { f(source, pos, random, renderParams) } -> std::same_as<std::optional<BlockPos>>;
+};
+template <FeaturePlaceCallBack T>
+inline void register_feature(const std::string& name, const std::vector<std::string>& rules, T callback) {
+    struct Feature {
+        T                       callback;
+        std::optional<BlockPos> place(
+            class BlockSource&    source,
+            class BlockPos const& pos,
+            class Random&         random,
+            class RenderParams&   renderParams
+        ) {
+            return callback(source, pos, random, renderParams);
+        }
+    };
+    register_feature<Feature>(name, rules, callback);
+}
 } // namespace custom_feature_helper
