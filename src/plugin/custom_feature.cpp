@@ -1,11 +1,16 @@
 #include "plugin/custom_feature.h"
 #include "ll/api/memory/Hook.h"
 #include "mc/world/level/BlockPos.h"
+#include "mc/world/level/Level.h"
 #include "mc/world/level/biome/components/BiomeDecorationFeature.h"
 #include "mc/world/level/levelgen/feature/IFeature.h"
 #include "mc/world/level/levelgen/feature/registry/FeatureRegistry.h"
 #include "mc/world/level/levelgen/feature/registry/VanillaFeatures.h"
+#include "mc/world/level/storage/Experiments.h"
+#include "nlohmann/json.hpp"
 
+#include <cstdlib>
+#include <print>
 #include <vector>
 
 std::vector<custom_feature_helper::details::Wappper> wappers;
@@ -28,8 +33,8 @@ struct CustomFeatureBase : IFeature {
 LL_AUTO_STATIC_HOOK(
     DecorateHook,
     HookPriority::Normal,
-    "?decorate@BiomeDecorationSystem@@YAXAEAVLevelChunk@@AEAVBlockSource@@AEAVRandom@@AEAV?$vector@PEBVBiome@@V?$"
-    "allocator@PEBVBiome@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@"
+    "?decorateBiome@BiomeDecorationSystem@@YA_NAEAVLevelChunk@@AEAVBlockSource@@AEAVRandom@@V?$span@$$"
+    "CBUBiomeDecorationFeature@@$0?0@gsl@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@PEBVBiome@@"
     "AEBVIPreliminarySurfaceProvider@@@Z",
     void,
     class LevelChunk&                              lc,
@@ -37,16 +42,27 @@ LL_AUTO_STATIC_HOOK(
     class Random&                                  random,
     gsl::span<struct BiomeDecorationFeature const> featureList,
     std::string const&                             pass,
-    void*                                          p
+    class Biome const*                             biome,
+    class IPreliminarySurfaceProvider const&       provider
 ) {
     bs = &source;
-    // printf("%s:%p\n", pass.c_str(), featureList.data());
-    // std::vector<BiomeDecorationFeature> features;
-    // std::for_each(featureList.begin(), featureList.end(), [&](auto& f) { features.push_back(f); });
-    origin(lc, source, random, featureList, pass, p);
+    origin(lc, source, random, featureList, pass, biome, provider);
 }
 namespace custom_feature_helper::details {
-void register_feature(const Wappper& wapper) { wappers.emplace_back(wapper); }
+void register_feature(const Wappper& wapper) {
+    wappers.emplace_back(wapper);
+    std::filesystem::path rulesPath = "./definitions/feature_rules/";
+    for (const auto& rule : wapper.rules) {
+        auto name =
+            nlohmann::json::parse(rule, nullptr, true, true)["minecraft:feature_rules"]["description"]["identifier"]
+                .get<std::string>();
+        name = name.substr(name.find(':') + 1);
+        // std::println("{}", name);
+        std::ofstream fout(rulesPath / (name + ".json"));
+        fout << rule;
+        fout.close();
+    }
+}
 } // namespace custom_feature_helper::details
 LL_AUTO_STATIC_HOOK(
     FeatureRegisterHook,
@@ -62,3 +78,18 @@ LL_AUTO_STATIC_HOOK(
     }
     origin(registry, baseGameVersion, experiments);
 }
+auto init = [] {
+    std::atexit([] {
+        std::filesystem::path rulesPath = "./definitions/feature_rules/";
+        for (const auto& wapper : wappers) {
+            for (const auto& rule : wapper.rules) {
+                auto name = nlohmann::json::parse(rule, nullptr, true, true)["minecraft:feature_rules"]["description"]
+                                                                            ["identifier"]
+                                                                                .get<std::string>();
+                name = name.substr(name.find(':') + 1);
+                std::filesystem::remove(rulesPath / (name + ".json"));
+            }
+        }
+    });
+    return true;
+}();

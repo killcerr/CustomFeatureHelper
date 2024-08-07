@@ -9,8 +9,9 @@
 namespace custom_feature_helper {
 namespace details {
 struct Wappper {
-    std::string name;
-    void*       self;
+    std::string              name;
+    std::vector<std::string> rules;
+    void*                    self;
     std::optional<BlockPos> (*mPlace)(
         void*                 self,
         class BlockSource&    source,
@@ -32,10 +33,11 @@ concept CustomFeature = requires(
     { f.place(source, pos, random, renderParams) } -> std::same_as<std::optional<BlockPos>>;
 };
 template <CustomFeature T>
-inline void register_feature(std::string name, auto&&... args) {
+inline void register_feature(const std::string& name, const std::vector<std::string>& rules, auto&&... args) {
     details::register_feature(
         {name,
-         new T(std::forward(args)...),
+         rules,
+         new T(args...),
          [](void*                 self,
             class BlockSource&    source,
             class BlockPos const& pos,
